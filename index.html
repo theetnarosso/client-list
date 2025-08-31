@@ -1,0 +1,117 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>The Etna Rosso Client List</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="apple-touch-icon" href="icon.png">
+  <style>
+    body { font-family: sans-serif; padding: 20px; max-width: 600px; margin: auto; background: #fef9f4; color: #333; }
+    h1 { text-align: center; color: #a52834; }
+    form { display: flex; flex-direction: column; gap: 10px; }
+    label { font-weight: bold; }
+    input[type="text"], input[type="email"], input[type="tel"] {
+      padding: 10px; font-size: 16px; border: 1px solid #aaa; border-radius: 5px;
+    }
+    button {
+      padding: 12px; font-size: 16px; background-color: #a52834;
+      color: white; border: none; border-radius: 5px;
+    }
+    table { width: 100%; margin-top: 20px; border-collapse: collapse; }
+    th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+    input[type="file"], input[type="search"] { margin: 10px 0; }
+  </style>
+</head>
+<body>
+  <h1>The Etna Rosso Client List</h1>
+  <form id="clientForm">
+    <label>First Name: <input type="text" id="firstName" required></label>
+    <label>Last Name: <input type="text" id="lastName" required></label>
+    <label>Email: <input type="email" id="email" required></label>
+    <label>Phone: <input type="tel" id="phone" required></label>
+    <label><input type="checkbox" id="textUpdates" checked> Text Updates</label>
+    <label><input type="checkbox" id="emailUpdates" checked> Email Updates</label>
+    <button type="submit">Add Client</button>
+  </form>
+  <hr>
+  <input type="file" id="fileInput" accept=".csv">
+  <input type="search" id="searchBox" placeholder="Search clients...">
+  <button onclick="downloadCSV()">Download CSV</button>
+  <table id="clientTable">
+    <thead>
+      <tr><th>Date & Time</th><th>First</th><th>Last</th><th>Email</th><th>Phone</th><th>Text</th><th>Email</th></tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+<script>
+  const clientForm = document.getElementById('clientForm');
+  const clientTable = document.querySelector('#clientTable tbody');
+  const searchBox = document.getElementById('searchBox');
+  let clients = [];
+
+  clientForm.addEventListener('submit', e => {
+    e.preventDefault();
+    const now = new Date().toLocaleString();
+    const data = {
+      timestamp: now,
+      firstName: document.getElementById('firstName').value.trim(),
+      lastName: document.getElementById('lastName').value.trim(),
+      email: document.getElementById('email').value.trim(),
+      phone: document.getElementById('phone').value.trim(),
+      textUpdates: document.getElementById('textUpdates').checked ? 'Yes' : 'No',
+      emailUpdates: document.getElementById('emailUpdates').checked ? 'Yes' : 'No',
+    };
+    clients.push(data);
+    updateTable();
+    clientForm.reset();
+    document.getElementById('textUpdates').checked = true;
+    document.getElementById('emailUpdates').checked = true;
+  });
+
+  function updateTable() {
+    const term = searchBox.value.toLowerCase();
+    clientTable.innerHTML = '';
+    clients.filter(client =>
+      Object.values(client).some(val => val.toLowerCase().includes(term))
+    ).forEach(client => {
+      const row = clientTable.insertRow();
+      Object.values(client).forEach(val => {
+        const cell = row.insertCell();
+        cell.textContent = val;
+      });
+    });
+  }
+
+  searchBox.addEventListener('input', updateTable);
+
+  function downloadCSV() {
+    const rows = [
+      ["Date & Time", "First Name", "Last Name", "Email", "Phone", "Text Updates", "Email Updates"],
+      ...clients.map(c => [c.timestamp, c.firstName, c.lastName, c.email, c.phone, c.textUpdates, c.emailUpdates])
+    ];
+    const csvContent = rows.map(e => e.map(v => `"${v}"`).join(",")).join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv" });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'etna_rosso_clients.csv';
+    a.click();
+  }
+
+  document.getElementById('fileInput').addEventListener('change', e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(event) {
+      const lines = event.target.result.split("\n").slice(1);
+      clients = lines.map(line => {
+        const [timestamp, first, last, email, phone, text, emailOpt] = line.split(",").map(s => s.replace(/^"|"$/g, '').trim());
+        return { timestamp, firstName: first, lastName: last, email, phone, textUpdates: text, emailUpdates: emailOpt };
+      }).filter(c => c.email);
+      updateTable();
+    };
+    reader.readAsText(file);
+  });
+</script>
+</body>
+</html>
